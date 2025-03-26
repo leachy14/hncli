@@ -11,26 +11,49 @@ A command-line interface for browsing Hacker News.
 - Configurable settings
 - Built-in caching for improved performance
 
-## Installation
-
-### For Linux/macOS/WSL:
+## Quick Start
 
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/hncli.git
 cd hncli
 
-# Run the setup script (creates virtual environment and installs dependencies)
+# Run the all-in-one setup script
+./setup.sh
+
+# Source your shell configuration (if you added the 'hn' shortcut)
+source ~/.zshrc  # For Zsh users
+# or
+source ~/.bashrc  # For Bash users
+
+# Start using the CLI
+hn top         # Show top stories
+hn new         # Show new stories
+hn search ai   # Search for AI-related stories
+```
+
+## Installation
+
+Our all-in-one setup script takes care of everything:
+
+1. Creates a Python virtual environment
+2. Installs all dependencies
+3. Sets up shell integration for Bash or Zsh
+4. Adds the `hn` command to your shell
+
+Just run:
+
+```bash
 ./setup.sh
 ```
 
+The script will detect your shell and guide you through the setup process.
+
 ## Usage
 
-### For Zsh Users (Recommended)
+### Using the `hn` command
 
-We've created an alias and Zsh-specific enhancements for you. See [ZSH_SETUP.md](ZSH_SETUP.md) for details.
-
-After running the setup and sourcing your `.zshrc`, you can simply use:
+If you added the shell shortcut during setup:
 
 ```bash
 # View top stories
@@ -42,12 +65,19 @@ hn new --limit 20
 # View best stories
 hn best
 
-# And all other commands
+# View a specific story with comments
+hn story <id>
+
+# Search for stories
+hn search "python"
+
+# View user profile
+hn user <username>
 ```
 
-### For WSL Users
+### Using the run script directly
 
-The `run-hncli.sh` script handles activating the virtual environment for you:
+If you prefer not to add the shortcut:
 
 ```bash
 # View top stories
@@ -56,30 +86,20 @@ The `run-hncli.sh` script handles activating the virtual environment for you:
 # View new stories with specific limit
 ./run-hncli.sh new --limit 20
 
-# View best stories
-./run-hncli.sh best
-
 # And so on...
 ```
 
-### Standard Usage (Requires Activating Virtual Environment)
+### Manual virtual environment activation
 
-Make sure the virtual environment is activated before running commands:
+For development or if you prefer manual control:
 
 ```bash
-# First, activate the virtual environment
-source venv/bin/activate  # On Linux/macOS/WSL
-# or
-. ./venv/bin/activate     # Alternative for some shells
+# Activate the virtual environment
+source venv/bin/activate
 
-# Then run commands:
+# Run commands directly with the Python script
 ./hncli top
 ./hncli new --limit 20
-./hncli best
-./hncli story <id>
-./hncli search "search term"
-./hncli user <username>
-./hncli open <id>
 ```
 
 ## Configuration
@@ -88,16 +108,16 @@ The CLI is configurable through a simple configuration system:
 
 ```bash
 # View all configuration settings
-./run-hncli.sh config-get
+hn config-get
 
 # View a specific setting
-./run-hncli.sh config-get stories_per_page
+hn config-get stories_per_page
 
 # Update a setting
-./run-hncli.sh config-set stories_per_page 20
+hn config-set stories_per_page 20
 
 # Reset to default configuration
-./run-hncli.sh config-reset
+hn config-reset
 ```
 
 Available configuration options:
@@ -113,12 +133,12 @@ The CLI caches API requests to improve performance:
 
 ```bash
 # Clear the cache to fetch fresh data
-./run-hncli.sh cache-clear
+hn cache-clear
 ```
 
 ## Development
 
-If you want to develop the CLI further, you can:
+If you want to develop the CLI further:
 
 ```bash
 # Activate the virtual environment
@@ -128,24 +148,6 @@ source venv/bin/activate
 
 # Test your changes directly
 ./hncli top
-```
-
-## Shell Integration Tips
-
-### Zsh Users
-See [ZSH_SETUP.md](ZSH_SETUP.md) for detailed Zsh integration.
-
-### Bash Users
-You can create an alias in your `.bashrc` file:
-```bash
-echo 'alias hn="/path/to/hncli/run-hncli.sh"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-### PowerShell Users
-If you're using PowerShell to launch WSL, you can create a function in your PowerShell profile:
-```powershell
-function hncli { wsl -e /path/to/hncli/run-hncli.sh $args }
 ```
 
 ## License
