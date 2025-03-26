@@ -1,0 +1,48 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/venv/bin/python",
+    "python.terminal.activateEnvironment": true,
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}"
+    ],
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "${workspaceFolder}"
+    },
+    "terminal.integrated.env.osx": {
+        "PYTHONPATH": "${workspaceFolder}"
+    },
+    "terminal.integrated.env.windows": {
+        "PYTHONPATH": "${workspaceFolder}"
+    },
+    "terminal.integrated.scrollback": 10000,
+    "terminal.integrated.fontSize": 14,
+    "terminal.integrated.cursorBlinking": true,
+    "terminal.integrated.cursorStyle": "line",
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "terminal.integrated.defaultProfile.osx": "bash",
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "editor.rulers": [100],
+    "files.associations": {
+        "hncli": "python",
+        "run-hncli.sh": "shellscript"
+    },
+    "workbench.colorCustomizations": {
+        "terminal.background": "#1E1E1E",
+        "terminal.foreground": "#E9E9E9",
+        "terminal.ansiBlack": "#000000",
+        "terminal.ansiBlue": "#6A7EC8",
+        "terminal.ansiBrightBlack": "#666666",
+        "terminal.ansiBrightBlue": "#819AFF",
+        "terminal.ansiBrightCyan": "#66D9EF",
+        "terminal.ansiBrightGreen": "#A6E22E",
+        "terminal.ansiBrightMagenta": "#AE81FF",
+        "terminal.ansiBrightRed": "#F92672",
+        "terminal.ansiBrightWhite": "#FFFFFF",
+        "terminal.ansiBrightYellow": "#E2E22E",
+        "terminal.ansiCyan": "#56ADBC",
+        "terminal.ansiGreen": "#86B42B",
+        "terminal.ansiMagenta": "#8C6BC8",
+        "terminal.ansiRed": "#C4265E",
+        "terminal.ansiWhite": "#E3E3DD",
+        "terminal.ansiYellow": "#B3B42B"
+    }
+} 

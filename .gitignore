@@ -44,10 +44,16 @@ coverage.xml
 
 # IDE specific files
 .idea/
-.vscode/
 *.swp
 *.swo
 *~
+
+# VS Code - track shared configs, ignore user-specific settings
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
+!.vscode/extensions.json
 
 # OS specific files
 .DS_Store
@@ -69,4 +75,8 @@ yarn-error.log*
 .env.local
 .env.development.local
 .env.test.local
-.env.production.local 
+.env.production.local
+
+# HN CLI specific
+.hn_config/
+.hn_cache/ 

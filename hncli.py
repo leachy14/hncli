@@ -16,6 +16,11 @@ from typing import List, Optional
 import textwrap
 import config
 import cache
+import subprocess
+import os
+import sys
+import re
+from rich.prompt import Prompt
 
 app = typer.Typer(help="Hacker News CLI")
 console = Console()
@@ -200,68 +205,108 @@ def display_comments(story: dict, max_depth: int = None) -> None:
     
     fetch_and_display_comments(comment_ids)
 
+def clear_screen():
+    """Clear the terminal screen based on OS."""
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def show_navigation_menu(story_type: str, page: int, total_pages: int, story_count: int) -> str:
+    """Show navigation menu and return user command."""
+    console.print("\n--- Navigation ---")
+    console.print(f"Page {page}/{total_pages} ({story_count} stories total)")
+    console.print("[n] Next page | [p] Previous page | [#] Select story | [r] Refresh | [q] Quit")
+    return Prompt.ask("Enter command", default="n")
+
+def handle_story_viewing(story: dict) -> None:
+    """Handle viewing a story and its comments."""
+    clear_screen()
+    display_story(story)
+    
+    while True:
+        console.print("\n--- Story Options ---")
+        console.print("[c] View comments | [o] Open in browser | [b] Back to stories | [q] Quit")
+        choice = Prompt.ask("Enter option", default="c")
+        
+        if choice.lower() == 'c':
+            display_comments(story)
+        elif choice.lower() == 'o':
+            webbrowser.open(f"{HN_WEB_URL}/item?id={story['id']}")
+            console.print(f"Opening story {story['id']} in browser...")
+        elif choice.lower() == 'b':
+            return
+        elif choice.lower() == 'q':
+            sys.exit(0)
+
+def browse_stories(story_type: str, stories_per_page: int = None) -> None:
+    """Browse stories with pagination and interactive navigation."""
+    if stories_per_page is None:
+        stories_per_page = get_config_value("stories_per_page", 10)
+    
+    with console.status(f"Fetching {story_type} stories..."):
+        story_ids = get_story_ids(story_type)
+        total_stories = len(story_ids)
+    
+    current_page = 1
+    total_pages = (total_stories + stories_per_page - 1) // stories_per_page
+    
+    while True:
+        clear_screen()
+        start_idx = (current_page - 1) * stories_per_page
+        end_idx = min(start_idx + stories_per_page, total_stories)
+        
+        # Fetch and display current page of stories
+        stories = []
+        with console.status(f"Loading page {current_page}..."):
+            for story_id in story_ids[start_idx:end_idx]:
+                try:
+                    story = get_item(story_id)
+                    if story and story.get("type") == "story":
+                        stories.append(story)
+                except Exception as e:
+                    console.print(f"Error fetching story {story_id}: {e}")
+        
+        console.print(f"\n[bold]{story_type.capitalize()} Stories (Page {current_page}/{total_pages})[/bold]\n")
+        display_stories(stories)
+        
+        # Show navigation menu
+        command = show_navigation_menu(story_type, current_page, total_pages, total_stories)
+        
+        # Process navigation command
+        if command.lower() == 'n':
+            if current_page < total_pages:
+                current_page += 1
+        elif command.lower() == 'p':
+            if current_page > 1:
+                current_page -= 1
+        elif command.lower() == 'r':
+            # Refresh the current page
+            cache.clear()
+            with console.status(f"Refreshing {story_type} stories..."):
+                story_ids = get_story_ids(story_type)
+                total_stories = len(story_ids)
+                total_pages = (total_stories + stories_per_page - 1) // stories_per_page
+        elif command.lower() == 'q':
+            break
+        elif command.isdigit():
+            idx = int(command)
+            if 1 <= idx <= len(stories):
+                handle_story_viewing(stories[idx-1])
+            else:
+                console.print(f"[red]Invalid story number. Choose between 1 and {len(stories)}.[/red]")
+
 @app.command()
 def top(limit: int = None) -> None:
-    """Show top stories from Hacker News."""
-    if limit is None:
-        limit = get_config_value("stories_per_page", 10)
-        
-    with console.status("Fetching top stories..."):
-        story_ids = get_story_ids("top")
-        stories = []
-        
-        for story_id in story_ids[:limit]:
-            try:
-                story = get_item(story_id)
-                if story and story.get("type") == "story":
-                    stories.append(story)
-            except Exception as e:
-                console.print(f"Error fetching story {story_id}: {e}")
-    
-    console.print(f"\n[bold]Top {len(stories)} Stories[/bold]\n")
-    display_stories(stories)
+    """Show top stories from Hacker News with interactive browsing."""
+    browse_stories("top", limit)
 
 @app.command()
 def new(limit: int = None) -> None:
-    """Show new stories from Hacker News."""
-    if limit is None:
-        limit = get_config_value("stories_per_page", 10)
-        
-    with console.status("Fetching new stories..."):
-        story_ids = get_story_ids("new")
-        stories = []
-        
-        for story_id in story_ids[:limit]:
-            try:
-                story = get_item(story_id)
-                if story and story.get("type") == "story":
-                    stories.append(story)
-            except Exception as e:
-                console.print(f"Error fetching story {story_id}: {e}")
-    
-    console.print(f"\n[bold]Newest {len(stories)} Stories[/bold]\n")
-    display_stories(stories)
+    """Show new stories from Hacker News with interactive browsing."""
+    browse_stories("new", limit)
 
 @app.command()
 def best(limit: int = None) -> None:
-    """Show best stories from Hacker News."""
-    if limit is None:
-        limit = get_config_value("stories_per_page", 10)
-        
-    with console.status("Fetching best stories..."):
-        story_ids = get_story_ids("best")
-        stories = []
-        
-        for story_id in story_ids[:limit]:
-            try:
-                story = get_item(story_id)
-                if story and story.get("type") == "story":
-                    stories.append(story)
-            except Exception as e:
-                console.print(f"Error fetching story {story_id}: {e}")
-    
-    console.print(f"\n[bold]Best {len(stories)} Stories[/bold]\n")
-    display_stories(stories)
+    """Show best stories from Hacker News with interactive browsing."""
+    browse_stories("best", limit)
 
 @app.command()
 def story(item_id: int) -> None:
@@ -276,16 +321,7 @@ def story(item_id: int) -> None:
             console.print(f"Error fetching story {item_id}: {e}")
             return
     
-    display_story(story)
-    
-    # Ask if user wants to view comments
-    if typer.confirm("\nView comments?"):
-        display_comments(story)
-    
-    # Check if we should open in browser automatically
-    open_in_browser = get_config_value("open_links_in_browser", True)
-    if open_in_browser or typer.confirm("\nOpen in browser?"):
-        webbrowser.open(f"{HN_WEB_URL}/item?id={item_id}")
+    handle_story_viewing(story)
 
 @app.command()
 def user(username: str) -> None:
@@ -366,11 +402,46 @@ def search(query: str, limit: int = None) -> None:
                 # Silently ignore errors during search
                 pass
     
-    console.print(f"\n[bold]Search Results for '{query}'[/bold]\n")
-    if matching_stories:
-        display_stories(matching_stories)
-    else:
+    if not matching_stories:
+        console.print(f"\n[bold]Search Results for '{query}'[/bold]\n")
         console.print("No matching stories found.")
+        return
+        
+    # Display stories with interactive browsing
+    current_page = 1
+    stories_per_page = get_config_value("stories_per_page", 10)
+    total_stories = len(matching_stories)
+    total_pages = (total_stories + stories_per_page - 1) // stories_per_page
+    
+    while True:
+        clear_screen()
+        start_idx = (current_page - 1) * stories_per_page
+        end_idx = min(start_idx + stories_per_page, total_stories)
+        
+        console.print(f"\n[bold]Search Results for '{query}' (Page {current_page}/{total_pages})[/bold]\n")
+        display_stories(matching_stories[start_idx:end_idx])
+        
+        # Show navigation menu
+        command = show_navigation_menu("search", current_page, total_pages, total_stories)
+        
+        # Process navigation command
+        if command.lower() == 'n':
+            if current_page < total_pages:
+                current_page += 1
+        elif command.lower() == 'p':
+            if current_page > 1:
+                current_page -= 1
+        elif command.lower() == 'r':
+            # Just stay on the same page since search results don't change
+            pass
+        elif command.lower() == 'q':
+            break
+        elif command.isdigit():
+            idx = int(command)
+            if 1 <= idx <= len(matching_stories[start_idx:end_idx]):
+                handle_story_viewing(matching_stories[start_idx + idx - 1])
+            else:
+                console.print(f"[red]Invalid story number. Choose between 1 and {len(matching_stories[start_idx:end_idx])}.[/red]")
 
 @app.command()
 def open(story_id: int) -> None:

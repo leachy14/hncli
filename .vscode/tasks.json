@@ -1,0 +1,125 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "HN CLI: Activate Environment and Run",
+            "type": "shell",
+            "command": "${workspaceFolder}/run-hncli.sh",
+            "args": [
+                "${input:hnCommand}",
+                "${input:hnParam}"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "detail": "Run any HN CLI command with interactive navigation"
+        },
+        {
+            "label": "HN CLI: Top Stories (Interactive)",
+            "type": "shell",
+            "command": "${workspaceFolder}/run-hncli.sh top",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "detail": "Browse top stories with interactive pagination and navigation"
+        },
+        {
+            "label": "HN CLI: New Stories (Interactive)",
+            "type": "shell",
+            "command": "${workspaceFolder}/run-hncli.sh new",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "detail": "Browse new stories with interactive pagination and navigation"
+        },
+        {
+            "label": "HN CLI: Best Stories (Interactive)",
+            "type": "shell",
+            "command": "${workspaceFolder}/run-hncli.sh best",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "detail": "Browse best stories with interactive pagination and navigation"
+        },
+        {
+            "label": "HN CLI: Search Stories (Interactive)",
+            "type": "shell",
+            "command": "${workspaceFolder}/run-hncli.sh search",
+            "args": ["${input:searchQuery}"],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "detail": "Search stories with interactive results browsing"
+        },
+        {
+            "label": "HN CLI: View Story (Interactive)",
+            "type": "shell",
+            "command": "${workspaceFolder}/run-hncli.sh story",
+            "args": ["${input:storyId}"],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "detail": "View a specific story with interactive comment browsing"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "hnCommand",
+            "type": "pickString",
+            "description": "Select HN CLI command",
+            "options": [
+                "top",
+                "new",
+                "best",
+                "story",
+                "search",
+                "user",
+                "open",
+                "config-get",
+                "config-set",
+                "config-reset",
+                "cache-clear"
+            ],
+            "default": "top"
+        },
+        {
+            "id": "hnParam",
+            "type": "promptString",
+            "description": "Enter command parameter (if needed)",
+            "default": ""
+        },
+        {
+            "id": "searchQuery",
+            "type": "promptString",
+            "description": "Enter search query",
+            "default": "python"
+        },
+        {
+            "id": "storyId",
+            "type": "promptString",
+            "description": "Enter story ID",
+            "default": ""
+        }
+    ]
+} 

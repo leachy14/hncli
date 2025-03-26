@@ -1,0 +1,152 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "HN CLI: Top Stories (Interactive)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hncli.py",
+            "args": ["top"],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "presentation": {
+                "hidden": false,
+                "group": "HN CLI",
+                "order": 1
+            },
+            "description": "Browse top stories with interactive pagination and navigation"
+        },
+        {
+            "name": "HN CLI: New Stories (Interactive)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hncli.py",
+            "args": ["new"],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "presentation": {
+                "hidden": false,
+                "group": "HN CLI",
+                "order": 2
+            },
+            "description": "Browse new stories with interactive pagination and navigation"
+        },
+        {
+            "name": "HN CLI: Best Stories (Interactive)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hncli.py",
+            "args": ["best"],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "presentation": {
+                "hidden": false,
+                "group": "HN CLI",
+                "order": 3
+            },
+            "description": "Browse best stories with interactive pagination and navigation"
+        },
+        {
+            "name": "HN CLI: Search Stories (Interactive)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hncli.py",
+            "args": ["search", "${input:searchQuery}"],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "presentation": {
+                "hidden": false,
+                "group": "HN CLI",
+                "order": 4
+            },
+            "description": "Search stories with interactive results browsing"
+        },
+        {
+            "name": "HN CLI: View Story (Interactive)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hncli.py",
+            "args": ["story", "${input:storyId}"],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "presentation": {
+                "hidden": false,
+                "group": "HN CLI",
+                "order": 5
+            },
+            "description": "View a specific story with interactive comment browsing"
+        },
+        {
+            "name": "HN CLI: Custom Command",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/hncli.py",
+            "args": ["${input:hnCommand}", "${input:hnParam}"],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "presentation": {
+                "hidden": false,
+                "group": "HN CLI",
+                "order": 6
+            },
+            "description": "Run any custom HN CLI command with parameters"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "hnCommand",
+            "type": "pickString",
+            "description": "Select HN CLI command",
+            "options": [
+                "top",
+                "new",
+                "best",
+                "story",
+                "search",
+                "user",
+                "open",
+                "config-get",
+                "config-set",
+                "config-reset",
+                "cache-clear"
+            ],
+            "default": "top"
+        },
+        {
+            "id": "hnParam",
+            "type": "promptString",
+            "description": "Enter command parameter (if needed)",
+            "default": ""
+        },
+        {
+            "id": "searchQuery",
+            "type": "promptString",
+            "description": "Enter search query",
+            "default": "python"
+        },
+        {
+            "id": "storyId",
+            "type": "promptString",
+            "description": "Enter story ID",
+            "default": ""
+        }
+    ]
+} 
