@@ -9,10 +9,15 @@ from typing import Dict, Any, Optional
 
 # Default configuration
 DEFAULT_CONFIG = {
+    # Maximum number of stories per page (actual number may be lower based on terminal size)
     "stories_per_page": 10,
+    # Maximum depth of comments to display 
     "max_comment_depth": 3,
+    # Whether to automatically open links in browser
     "open_links_in_browser": True,
+    # Color theme to use
     "color_theme": "default",
+    # Cache timeout in minutes
     "cache_timeout_minutes": 5
 }
 

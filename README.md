@@ -12,6 +12,7 @@ A command-line interface for browsing Hacker News.
 - Configurable settings
 - Built-in caching for improved performance
 - VS Code integration
+- Adaptive display that adjusts to terminal size
 
 ## Quick Start
 
@@ -90,6 +91,22 @@ When viewing a story:
 - Go back to the stories list with `b`
 - Quit to the command line with `q`
 
+### Adaptive Display
+
+The CLI automatically adjusts the number of stories displayed based on your terminal window size:
+
+- Resize your terminal window to see more or fewer stories per page
+- The application recalculates the optimal number of stories each time you navigate
+- Comment display also adapts to available space
+- Text wrapping adjusts to fit your terminal width
+- Titles and headers are centered for better readability
+
+You can see your current terminal size and the calculated number of stories per page by running:
+
+```bash
+hn config-get
+```
+
 ### Using the run script directly
 
 If you prefer not to add the shortcut:
@@ -164,6 +181,7 @@ hn config-reset
 
 Available configuration options:
 - `stories_per_page`: Number of stories to display per page (default: 10)
+  - Note: The actual number displayed may be lower depending on terminal size
 - `max_comment_depth`: Maximum depth of comments to display (default: 3)
 - `open_links_in_browser`: Whether to automatically open links in browser (default: true)
 - `color_theme`: Color theme to use (default: "default")

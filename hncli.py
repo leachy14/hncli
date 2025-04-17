@@ -10,7 +10,6 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.progress import Progress
 from rich.markup import escape
-from rich.text import Text
 import webbrowser
 from typing import List, Optional
 import textwrap
@@ -20,6 +19,7 @@ import subprocess
 import os
 import sys
 import re
+import shutil
 from rich.prompt import Prompt
 
 app = typer.Typer(help="Hacker News CLI")
@@ -118,6 +118,42 @@ def truncate_text(text: str, max_length: int = 80) -> str:
         return text[:max_length-3] + "..."
     return text or ""
 
+def get_terminal_size():
+    """Get the current terminal size."""
+    try:
+        # Get terminal size
+        columns, rows = shutil.get_terminal_size()
+        return columns, rows
+    except Exception:
+        # Default to standard size if detection fails
+        return 80, 24
+
+def calculate_stories_per_page():
+    """Calculate how many stories to display based on terminal size.
+
+    The new (table‐based) layout shows each story on a **single** table row,
+    which is far more compact than the previous panel‑per‑story approach.
+    Because of that we no longer need to divide the available rows by a fixed
+    constant.  Instead we can estimate the number of rows available after
+    subtracting a small, fixed overhead for the table header, title banner and
+    navigation prompt.
+    """
+    _, rows = get_terminal_size()
+
+    # Reserve a handful of lines for static interface elements (banner/title,
+    # table header, blank lines and the navigation menu).
+    RESERVED_ROWS = 8
+    available_rows = max(rows - RESERVED_ROWS, 1)
+
+    # Respect the user‑configured maximum.
+    user_configured = get_config_value("stories_per_page", 10)
+
+    return min(available_rows, user_configured)
+
+# ---------------------------------------------------------------------------
+# Story presentation helpers
+# ---------------------------------------------------------------------------
+
 def display_story(story: dict, show_index: Optional[int] = None) -> None:
     """Display a story in a rich panel."""
     title = story.get("title", "No title")
@@ -131,12 +167,15 @@ def display_story(story: dict, show_index: Optional[int] = None) -> None:
     if url and "://" in url:
         domain = url.split("://")[1].split("/")[0]
     
-    title_display = Text(title)
-    title_display.stylize("bold")
-    
+    # Make the story title itself clickable. For panels (single‑story
+    # view) we rely on Rich markup to apply both the *bold* style and the
+    # hyperlink.
+
     index_prefix = f"[{show_index}] " if show_index is not None else ""
-    
-    content = f"{index_prefix}{title_display}\n\n"
+
+    content = (
+        f"{index_prefix}[link={url}][bold]{escape(title)}[/bold][/link]\n\n"
+    )
     if domain:
         content += f"[link={url}]{domain}[/link]\n"
     content += f"\n{points} points by {author} {time_ago} | {comments_count} comments"
@@ -145,11 +184,47 @@ def display_story(story: dict, show_index: Optional[int] = None) -> None:
     console.print(panel)
 
 def display_stories(stories: List[dict]) -> None:
-    """Display a list of stories."""
-    for i, story in enumerate(stories, 1):
-        display_story(story, i)
-        if i < len(stories):
-            console.print("")  # Add a newline between stories
+    """Display a list of stories in a compact table format."""
+
+    if not stories:
+        console.print("No stories to display.")
+        return
+
+    columns, _ = get_terminal_size()
+
+    table = Table(show_header=True, header_style="bold", expand=False)
+    table.add_column("#", style="dim", width=4, no_wrap=True)
+
+    # The width left for the title column after subtracting the fixed‑width
+    # columns (index + points + comments + age + column padding).
+    fixed_width = 4 + 6 + 9 + 12 + 4  # column widths + minimal paddings
+    title_width = max(columns - fixed_width, 20)
+
+    table.add_column("Title", width=title_width, overflow="ellipsis", no_wrap=True)
+    table.add_column("Pts", justify="right", width=6, no_wrap=True)
+    table.add_column("Cmts", justify="right", width=9, no_wrap=True)
+    table.add_column("Age", style="dim", width=12, no_wrap=True)
+
+    for idx, story in enumerate(stories, 1):
+        title = story.get("title", "No title")
+        url = story.get("url", f"{HN_WEB_URL}/item?id={story['id']}")
+        domain = ""
+        if url and "://" in url:
+            domain = url.split("://")[1].split("/")[0]
+        title_text = escape(title)
+        domain_text = escape(domain)
+
+        title_markup = f"[link={url}]{title_text}[/link]"
+        if domain:
+            title_markup += f" ({domain_text})"
+
+        points = str(story.get("score", 0))
+        comments_count = str(len(story.get("kids", [])))
+        age = format_time_ago(story.get("time", 0))
+
+        table.add_row(str(idx), title_markup, points, comments_count, age)
+
+    console.print(table)
 
 def display_comment(comment: dict, indent_level: int = 0) -> None:
     """Display a comment with appropriate indentation."""
@@ -171,39 +246,151 @@ def display_comment(comment: dict, indent_level: int = 0) -> None:
     console.print(header)
     
     # Wrap and indent comment text
-    wrapped_text = textwrap.fill(text, width=100 - len(indent))
+    columns, _ = get_terminal_size()
+    wrap_width = min(100, columns - len(indent) - 5)  # Account for indent and margin
+    wrapped_text = textwrap.fill(text, width=wrap_width)
     wrapped_text = "\n".join(f"{indent}{line}" for line in wrapped_text.split("\n"))
     console.print(wrapped_text)
     console.print("")
 
 def display_comments(story: dict, max_depth: int = None) -> None:
-    """Display comments for a story with a maximum depth."""
-    if max_depth is None:
-        max_depth = get_config_value("max_comment_depth", 3)
-        
+    """
+    Interactive display of top-level comments for a story.
+    Users can navigate parent comments using arrow keys and press Enter to expand comment threads.
+    Only a limited number of parent comments (5-10) are loaded based on screen space.
+    """
+    parent_ids = story.get("kids", [])
     console.print(f"\n[bold]Comments for: {story.get('title', 'Unknown Story')}[/bold]\n")
-    
-    comment_ids = story.get("kids", [])
-    if not comment_ids:
+    if not parent_ids:
         console.print("No comments yet.")
         return
-    
-    def fetch_and_display_comments(comment_ids, depth=0):
-        if depth >= max_depth or not comment_ids:
-            return
-        
-        for comment_id in comment_ids[:10]:  # Limit to first 10 comments per level
-            try:
-                comment = get_item(comment_id)
-                if "deleted" not in comment and "dead" not in comment:
-                    display_comment(comment, depth)
-                    # Recursively fetch child comments
-                    if "kids" in comment:
-                        fetch_and_display_comments(comment["kids"], depth + 1)
-            except Exception as e:
-                console.print(f"Error fetching comment {comment_id}: {e}")
-    
-    fetch_and_display_comments(comment_ids)
+
+    # Determine number of parent comments to display based on terminal size
+    _, rows = get_terminal_size()
+    max_parents = max(5, min(10, rows - 5))
+    parent_ids = parent_ids[:max_parents]
+
+    # Pre-fetch parent comments for summaries
+    parent_comments = []
+    for cid in parent_ids:
+        try:
+            comment = get_item(cid)
+            if comment and "deleted" not in comment and "dead" not in comment:
+                parent_comments.append(comment)
+        except Exception:
+            pass
+
+    def read_single_keypress():
+        import sys, termios, tty
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
+
+    def get_key():
+        key = read_single_keypress()
+        if key == "\x1b":
+            # Arrow keys start with ESC sequence
+            next1 = read_single_keypress()
+            if next1 == "[":
+                next2 = read_single_keypress()
+                if next2 == "A":
+                    return "UP"
+                elif next2 == "B":
+                    return "DOWN"
+            return None
+        elif key in ("\r", "\n"):
+            return "ENTER"
+        elif key.lower() == "q":
+            return "QUIT"
+        elif key.lower() == "b":
+            return "BACK"
+        return None
+
+    def strip_html_tags(text: str) -> str:
+        return re.sub(r"<[^>]+>", "", text)
+
+    def get_summary_text(comment: dict, length: int = 80) -> str:
+        import html
+        text = html.unescape(comment.get("text", "") or "")
+        text = strip_html_tags(text).replace("\n", " ")
+        return truncate_text(text, length)
+
+    def expand_comment_tree(comment):
+        # Flatten the comment thread into lines for interactive scrolling
+        lines: List[str] = []
+        import html
+
+        def collect(cmt: dict, depth: int):
+            if not cmt or "deleted" in cmt or "dead" in cmt:
+                return
+            author = cmt.get("by", "unknown")
+            time_ago = format_time_ago(cmt.get("time", 0))
+            indent = "  " * depth
+            header = f"{indent}[bold]{author}[/bold] {time_ago}"
+            lines.append(header)
+            # Process and wrap text
+            text = html.unescape(cmt.get("text", "") or "")
+            text = text.replace("<p>", "\n\n").replace("</p>", "")
+            text = strip_html_tags(text)
+            cols, _ = get_terminal_size()
+            wrap_width = min(100, cols - len(indent) - 5)
+            wrapped = textwrap.fill(text, width=wrap_width)
+            for ln in wrapped.split("\n"):
+                lines.append(f"{indent}{ln}")
+            lines.append("")
+            for kid in cmt.get("kids", []):
+                try:
+                    child = get_item(kid)
+                    collect(child, depth + 1)
+                except Exception:
+                    continue
+
+        collect(comment, 0)
+        # Interactive scroll through the collected lines
+        offset = 0
+        _, rows = get_terminal_size()
+        # Reserve one line for instructions
+        view_height = max(rows - 1, 1)
+        max_offset = max(len(lines) - view_height, 0)
+        while True:
+            clear_screen()
+            for ln in lines[offset: offset + view_height]:
+                console.print(ln)
+            console.print("[grey]Use ↑/↓ to scroll, any other key to return[/grey]")
+            key = get_key()
+            if key == "UP":
+                offset = max(0, offset - 1)
+            elif key == "DOWN":
+                offset = min(max_offset, offset + 1)
+            else:
+                break
+
+    # Interactive navigation loop
+    selected = 0
+    while True:
+        clear_screen()
+        console.print(f"[bold]Comments for: {story.get('title', 'Unknown Story')}[/bold]")
+        console.print("[grey]Use ↑/↓ to navigate, Enter to expand, b to go back, q to quit[/grey]\n")
+        for idx, comment in enumerate(parent_comments):
+            author = comment.get("by", "unknown")
+            time_ago = format_time_ago(comment.get("time", 0))
+            summary = get_summary_text(comment)
+            prefix = "→" if idx == selected else "  "
+            console.print(f"{prefix} [{idx+1}] {author} {time_ago}: {summary}")
+        key = get_key()
+        if key == "UP":
+            selected = (selected - 1) % len(parent_comments)
+        elif key == "DOWN":
+            selected = (selected + 1) % len(parent_comments)
+        elif key == "ENTER":
+            expand_comment_tree(parent_comments[selected])
+        elif key in ("QUIT", "BACK"):
+            break
 
 def clear_screen():
     """Clear the terminal screen based on OS."""
@@ -217,29 +404,23 @@ def show_navigation_menu(story_type: str, page: int, total_pages: int, story_cou
     return Prompt.ask("Enter command", default="n")
 
 def handle_story_viewing(story: dict) -> None:
-    """Handle viewing a story and its comments."""
+    """Display a story followed by its comments.
+
+    Once the user exits the comment view we immediately return to the caller
+    (i.e. the main stories list) instead of going through an extra submenu.
+    """
+
     clear_screen()
     display_story(story)
-    
-    while True:
-        console.print("\n--- Story Options ---")
-        console.print("[c] View comments | [o] Open in browser | [b] Back to stories | [q] Quit")
-        choice = Prompt.ask("Enter option", default="c")
-        
-        if choice.lower() == 'c':
-            display_comments(story)
-        elif choice.lower() == 'o':
-            webbrowser.open(f"{HN_WEB_URL}/item?id={story['id']}")
-            console.print(f"Opening story {story['id']} in browser...")
-        elif choice.lower() == 'b':
-            return
-        elif choice.lower() == 'q':
-            sys.exit(0)
+    display_comments(story)
+
+    # Returning here goes straight back to the main list – no extra submenu.
 
 def browse_stories(story_type: str, stories_per_page: int = None) -> None:
     """Browse stories with pagination and interactive navigation."""
     if stories_per_page is None:
-        stories_per_page = get_config_value("stories_per_page", 10)
+        # Dynamically calculate stories per page based on terminal size
+        stories_per_page = calculate_stories_per_page()
     
     with console.status(f"Fetching {story_type} stories..."):
         story_ids = get_story_ids(story_type)
@@ -249,6 +430,16 @@ def browse_stories(story_type: str, stories_per_page: int = None) -> None:
     total_pages = (total_stories + stories_per_page - 1) // stories_per_page
     
     while True:
+        # Recalculate stories per page in case terminal has been resized
+        if stories_per_page == calculate_stories_per_page():
+            # Only recalculate total pages if the stories per page value changed
+            pass
+        else:
+            stories_per_page = calculate_stories_per_page()
+            total_pages = (total_stories + stories_per_page - 1) // stories_per_page
+            # Adjust current page if needed
+            current_page = min(current_page, total_pages)
+        
         clear_screen()
         start_idx = (current_page - 1) * stories_per_page
         end_idx = min(start_idx + stories_per_page, total_stories)
@@ -264,7 +455,12 @@ def browse_stories(story_type: str, stories_per_page: int = None) -> None:
                 except Exception as e:
                     console.print(f"Error fetching story {story_id}: {e}")
         
-        console.print(f"\n[bold]{story_type.capitalize()} Stories (Page {current_page}/{total_pages})[/bold]\n")
+        columns, _ = get_terminal_size()
+        title = f"{story_type.capitalize()} Stories (Page {current_page}/{total_pages})"
+        padding = max(0, (columns - len(title) - 2) // 2)
+        centered_title = " " * padding + title
+        
+        console.print(f"\n[bold]{centered_title}[/bold]\n")
         display_stories(stories)
         
         # Show navigation menu
@@ -368,7 +564,8 @@ def search(query: str, limit: int = None) -> None:
     For a more comprehensive search, consider using the Algolia HN Search API.
     """
     if limit is None:
-        limit = get_config_value("stories_per_page", 10)
+        # Dynamically calculate stories per page based on terminal size
+        limit = calculate_stories_per_page()
         
     query = query.lower()
     
@@ -387,7 +584,7 @@ def search(query: str, limit: int = None) -> None:
         # Search through stories
         matching_stories = []
         for story_id in all_story_ids:
-            if len(matching_stories) >= limit:
+            if len(matching_stories) >= 100:  # Limit to 100 matches max for pagination
                 break
             
             try:
@@ -409,16 +606,31 @@ def search(query: str, limit: int = None) -> None:
         
     # Display stories with interactive browsing
     current_page = 1
-    stories_per_page = get_config_value("stories_per_page", 10)
+    stories_per_page = calculate_stories_per_page()
     total_stories = len(matching_stories)
     total_pages = (total_stories + stories_per_page - 1) // stories_per_page
     
     while True:
+        # Recalculate stories per page in case terminal has been resized
+        if stories_per_page == calculate_stories_per_page():
+            # Only recalculate total pages if the stories per page value changed
+            pass
+        else:
+            stories_per_page = calculate_stories_per_page()
+            total_pages = (total_stories + stories_per_page - 1) // stories_per_page
+            # Adjust current page if needed
+            current_page = min(current_page, total_pages)
+            
         clear_screen()
         start_idx = (current_page - 1) * stories_per_page
         end_idx = min(start_idx + stories_per_page, total_stories)
         
-        console.print(f"\n[bold]Search Results for '{query}' (Page {current_page}/{total_pages})[/bold]\n")
+        columns, _ = get_terminal_size()
+        title = f"Search Results for '{query}' (Page {current_page}/{total_pages})"
+        padding = max(0, (columns - len(title) - 2) // 2)
+        centered_title = " " * padding + title
+        
+        console.print(f"\n[bold]{centered_title}[/bold]\n")
         display_stories(matching_stories[start_idx:end_idx])
         
         # Show navigation menu
@@ -485,6 +697,10 @@ def config_get(key: Optional[str] = None) -> None:
             
             for k, v in all_config.items():
                 table.add_row(k, str(v))
+            
+            # Add additional information about adaptive display
+            table.add_row("Terminal Size", f"{get_terminal_size()[0]}x{get_terminal_size()[1]}")
+            table.add_row("Current Stories per Page", str(calculate_stories_per_page()))
             
             console.print(table)
         except Exception as e:
