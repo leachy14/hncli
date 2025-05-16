@@ -15,4 +15,10 @@ fi
 
 # Activate the virtual environment and run the command
 source venv/bin/activate
-./hncli "$@" 
+
+# If no arguments are provided, default to showing top stories
+if [ $# -eq 0 ]; then
+    ./hncli top
+else
+    ./hncli "$@"
+fi 
