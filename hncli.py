@@ -129,26 +129,25 @@ def get_terminal_size():
         return 80, 24
 
 def calculate_stories_per_page():
-    """Calculate how many stories to display based on terminal size.
-
-    The new (table‐based) layout shows each story on a **single** table row,
-    which is far more compact than the previous panel‑per‑story approach.
-    Because of that we no longer need to divide the available rows by a fixed
-    constant.  Instead we can estimate the number of rows available after
-    subtracting a small, fixed overhead for the table header, title banner and
-    navigation prompt.
     """
-    _, rows = get_terminal_size()
+    Calculate how many stories to display per page based on terminal size.
 
-    # Reserve a handful of lines for static interface elements (banner/title,
-    # table header, blank lines and the navigation menu).
+    Calculates available rows after reserving lines for interface elements
+    (banner, header, blank lines, navigation menu) and clamps the result
+    between 10 and 20 stories per page for optimal readability.
+    """
+    # Determine terminal height and estimate available rows for stories
+    _, rows = get_terminal_size()
+    # Reserve lines for interface elements (banner/title, table header,
+    # blank lines, and navigation menu).
     RESERVED_ROWS = 8
     available_rows = max(rows - RESERVED_ROWS, 1)
 
-    # Respect the user‑configured maximum.
-    user_configured = get_config_value("stories_per_page", 10)
-
-    return min(available_rows, user_configured)
+    # Clamp the number of stories per page between defined minimum and maximum
+    MIN_STORIES = 10
+    MAX_STORIES = 20
+    # If terminal too small, show at least MIN_STORIES; if too large, cap at MAX_STORIES
+    return max(MIN_STORIES, min(available_rows, MAX_STORIES))
 
 # ---------------------------------------------------------------------------
 # Story presentation helpers
@@ -253,11 +252,12 @@ def display_comment(comment: dict, indent_level: int = 0) -> None:
     console.print(wrapped_text)
     console.print("")
 
-def display_comments(story: dict, max_depth: int = None) -> None:
+def display_comments(story: dict, max_comments: int = None) -> None:
     """
     Interactive display of top-level comments for a story.
     Users can navigate parent comments using arrow keys and press Enter to expand comment threads.
-    Only a limited number of parent comments (5-10) are loaded based on screen space.
+    By default, a limited number of parent comments (5-10) are loaded based on screen space,
+    or a custom limit can be specified via the --comments option.
     """
     parent_ids = story.get("kids", [])
     console.print(f"\n[bold]Comments for: {story.get('title', 'Unknown Story')}[/bold]\n")
@@ -265,10 +265,15 @@ def display_comments(story: dict, max_depth: int = None) -> None:
         console.print("No comments yet.")
         return
 
-    # Determine number of parent comments to display based on terminal size
-    _, rows = get_terminal_size()
-    max_parents = max(5, min(10, rows - 5))
-    parent_ids = parent_ids[:max_parents]
+    # Determine number of parent comments to display
+    if max_comments is not None:
+        # Use user-specified limit
+        parent_ids = parent_ids[:max_comments]
+    else:
+        # Limit based on terminal size (between 5 and 10)
+        _, rows = get_terminal_size()
+        max_parents = max(5, min(10, rows - 5))
+        parent_ids = parent_ids[:max_parents]
 
     # Pre-fetch parent comments for summaries
     parent_comments = []
@@ -403,7 +408,7 @@ def show_navigation_menu(story_type: str, page: int, total_pages: int, story_cou
     console.print("[n] Next page | [p] Previous page | [#] Select story | [r] Refresh | [q] Quit")
     return Prompt.ask("Enter command", default="n")
 
-def handle_story_viewing(story: dict) -> None:
+def handle_story_viewing(story: dict, max_comments: int = None) -> None:
     """Display a story followed by its comments.
 
     Once the user exits the comment view we immediately return to the caller
@@ -412,7 +417,7 @@ def handle_story_viewing(story: dict) -> None:
 
     clear_screen()
     display_story(story)
-    display_comments(story)
+    display_comments(story, max_comments)
 
     # Returning here goes straight back to the main list – no extra submenu.
 
@@ -505,7 +510,15 @@ def best(limit: int = None) -> None:
     browse_stories("best", limit)
 
 @app.command()
-def story(item_id: int) -> None:
+def story(
+    item_id: int,
+    comments: Optional[int] = typer.Option(
+        None,
+        "--comments",
+        "-c",
+        help="Number of top-level comments to display.",
+    ),
+) -> None:
     """Show a specific story and its comments."""
     with console.status(f"Fetching story {item_id}..."):
         try:
@@ -517,7 +530,7 @@ def story(item_id: int) -> None:
             console.print(f"Error fetching story {item_id}: {e}")
             return
     
-    handle_story_viewing(story)
+    handle_story_viewing(story, comments)
 
 @app.command()
 def user(username: str) -> None:
