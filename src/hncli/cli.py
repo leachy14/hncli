@@ -13,8 +13,7 @@ from rich.markup import escape
 import webbrowser
 from typing import List, Optional
 import textwrap
-import config
-import cache
+from hncli import config, cache
 import subprocess
 import os
 import sys

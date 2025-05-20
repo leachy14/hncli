@@ -21,13 +21,8 @@ A command-line interface for browsing Hacker News.
 git clone https://github.com/yourusername/hncli.git
 cd hncli
 
-# Run the all-in-one setup script
+# Run the minimal setup script
 ./setup.sh
-
-# Source your shell configuration (if you added the 'hn' shortcut)
-source ~/.zshrc  # For Zsh users
-# or
-source ~/.bashrc  # For Bash users
 
 # Start using the CLI
 hn top         # Show top stories
@@ -37,12 +32,10 @@ hn search ai   # Search for AI-related stories
 
 ## Installation
 
-Our all-in-one setup script takes care of everything:
+Our minimal setup script takes care of everything:
 
 1. Creates a Python virtual environment
-2. Installs all dependencies
-3. Sets up shell integration for Bash or Zsh
-4. Adds the `hn` command to your shell
+2. Installs the package in editable mode
 
 Just run:
 
@@ -50,13 +43,9 @@ Just run:
 ./setup.sh
 ```
 
-The script will detect your shell and guide you through the setup process.
-
 ## Usage
 
 ### Using the `hn` command
-
-If you added the shell shortcut during setup:
 
 ```bash
 # View top stories
@@ -107,20 +96,6 @@ You can see your current terminal size and the calculated number of stories per 
 hn config-get
 ```
 
-### Using the run script directly
-
-If you prefer not to add the shortcut:
-
-```bash
-# View top stories
-./run-hncli.sh top
-
-# View new stories with specific limit
-./run-hncli.sh new --limit 20
-
-# And so on...
-```
-
 ### VS Code Integration
 
 The project includes VS Code configurations for easy development and interactive usage:
@@ -154,11 +129,11 @@ For development or if you prefer manual control:
 
 ```bash
 # Activate the virtual environment
-source venv/bin/activate
+source .venv/bin/activate
 
 # Run commands directly with the Python script
-./hncli top
-./hncli new --limit 20
+hn top
+hn new --limit 20
 ```
 
 ## Configuration
@@ -202,12 +177,12 @@ If you want to develop the CLI further:
 
 ```bash
 # Activate the virtual environment
-source venv/bin/activate
+source .venv/bin/activate
 
 # Make your code changes
 
 # Test your changes directly
-./hncli top
+hn top
 ```
 
 ### VS Code Development Setup
