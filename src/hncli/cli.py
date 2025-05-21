@@ -3,6 +3,7 @@
 HackerNews CLI - A command-line interface for browsing Hacker News
 """
 
+
 import typer
 import requests
 from rich.console import Console
@@ -15,11 +16,6 @@ from typing import Any, List, Optional, Tuple
 import textwrap
 from hncli import config, cache
 import subprocess
-import os
-import sys
-import re
-import shutil
-from rich.prompt import Prompt
 
 app = typer.Typer(help="Hacker News CLI")
 console = Console()
@@ -565,9 +561,13 @@ def user(username: str) -> None:
     
     console.print(Panel(user_table, title=f"[bold]User Profile: {username}[/bold]"))
     
-    # Ask if user wants to open in browser
-    if typer.confirm("\nOpen user profile in browser?"):
+    # Automatically open in browser based on configuration
+    if get_config_value("open_links_in_browser", True):
         webbrowser.open(f"{HN_WEB_URL}/user?id={username}")
+    else:
+        # Ask if user wants to open in browser when automatic opening is disabled
+        if typer.confirm("\nOpen user profile in browser?"):
+            webbrowser.open(f"{HN_WEB_URL}/user?id={username}")
 
 @app.command()
 def search(query: str, limit: int = None) -> None:
@@ -671,8 +671,14 @@ def search(query: str, limit: int = None) -> None:
 @app.command()
 def open(story_id: int) -> None:
     """Open a story in the web browser."""
-    webbrowser.open(f"{HN_WEB_URL}/item?id={story_id}")
-    console.print(f"Opening story {story_id} in browser...")
+    url = f"{HN_WEB_URL}/item?id={story_id}"
+    if get_config_value("open_links_in_browser", True):
+        webbrowser.open(url)
+        console.print(f"Opening story {story_id} in browser...")
+    else:
+        if typer.confirm("Open story in browser?"):
+            webbrowser.open(url)
+            console.print(f"Opening story {story_id} in browser...")
 
 @app.command()
 def config_set(key: str, value: str) -> None:
