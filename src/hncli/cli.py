@@ -9,13 +9,15 @@ import requests
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.progress import Progress
+from rich.prompt import Prompt
 from rich.markup import escape
 import webbrowser
 from typing import Any, List, Optional, Tuple
 import textwrap
 from hncli import config, cache
-import subprocess
+import os
+import shutil
+import re
 
 app = typer.Typer(help="Hacker News CLI")
 console = Console()
