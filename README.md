@@ -200,4 +200,4 @@ When you open the project in VS Code, it will:
 
 ## License
 
-MIT 
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
