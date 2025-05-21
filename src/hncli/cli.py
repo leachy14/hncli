@@ -3,23 +3,23 @@
 HackerNews CLI - A command-line interface for browsing Hacker News
 """
 
-import typer
-import requests
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-from rich.progress import Progress
-from rich.markup import escape
-import webbrowser
-from typing import List, Optional
-import textwrap
-from hncli import config, cache
-import subprocess
 import os
-import sys
 import re
 import shutil
+import sys
+import textwrap
+from typing import List, Optional
+import webbrowser
+
+import requests
+from rich.console import Console
+from rich.markup import escape
+from rich.panel import Panel
 from rich.prompt import Prompt
+from rich.table import Table
+import typer
+
+from hncli import cache, config
 
 app = typer.Typer(help="Hacker News CLI")
 console = Console()
