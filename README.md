@@ -28,6 +28,10 @@ cd hncli
 hn top         # Show top stories
 hn new         # Show new stories
 hn search ai   # Search for AI-related stories
+
+# If you prefer not to install the `hn` entrypoint, you can run the
+# wrapper script directly:
+./run-hncli.sh top
 ```
 
 ## Installation
