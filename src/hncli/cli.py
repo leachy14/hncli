@@ -3,23 +3,19 @@
 HackerNews CLI - A command-line interface for browsing Hacker News
 """
 
-import os
-import re
-import shutil
-import sys
-import textwrap
-from typing import List, Optional
-import webbrowser
 
+import typer
 import requests
 from rich.console import Console
-from rich.markup import escape
 from rich.panel import Panel
-from rich.prompt import Prompt
 from rich.table import Table
-import typer
-
-from hncli import cache, config
+from rich.progress import Progress
+from rich.markup import escape
+import webbrowser
+from typing import Any, List, Optional, Tuple
+import textwrap
+from hncli import config, cache
+import subprocess
 
 app = typer.Typer(help="Hacker News CLI")
 console = Console()
@@ -31,7 +27,8 @@ USER_URL = f"{BASE_URL}/user"
 HN_WEB_URL = "https://news.ycombinator.com"
 
 # Load configuration
-def get_config_value(key, default=None):
+
+def get_config_value(key: str, default: Any = None) -> Any:
     """Get a configuration value with fallback to default."""
     try:
         return config.get_setting(key)
@@ -117,7 +114,7 @@ def truncate_text(text: str, max_length: int = 80) -> str:
         return text[:max_length-3] + "..."
     return text or ""
 
-def get_terminal_size():
+def get_terminal_size() -> Tuple[int, int]:
     """Get the current terminal size."""
     try:
         # Get terminal size
@@ -127,7 +124,7 @@ def get_terminal_size():
         # Default to standard size if detection fails
         return 80, 24
 
-def calculate_stories_per_page():
+def calculate_stories_per_page() -> int:
     """
     Calculate how many stories to display per page based on terminal size.
 
