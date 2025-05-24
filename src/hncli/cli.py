@@ -18,6 +18,27 @@ from hncli import config, cache
 import os
 import shutil
 import re
+import inspect
+import click
+
+# ---------------------------------------------------------------------------
+# Compatibility patches
+# ---------------------------------------------------------------------------
+# Typer 0.9 is incompatible with Click ≥ 8.2 due to the new "ctx" parameter in
+# ``Parameter.make_metavar``. When Click 8.2+ is used, calling ``make_metavar``
+# without a context raises ``TypeError`` during command execution.  To maintain
+# compatibility with newer Click versions, we patch ``Parameter.make_metavar``
+# to accept an optional ``ctx`` argument.
+
+if "ctx" in inspect.signature(click.Parameter.make_metavar).parameters:
+    _original_make_metavar = click.Parameter.make_metavar
+
+    def _patched_make_metavar(self, ctx: Optional[click.Context] = None) -> str:
+        if ctx is None:
+            ctx = click.Context(click.Command("dummy"))
+        return _original_make_metavar(self, ctx)
+
+    click.Parameter.make_metavar = _patched_make_metavar  # type: ignore[assignment]
 
 app = typer.Typer(help="Hacker News CLI")
 console = Console()
