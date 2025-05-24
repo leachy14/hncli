@@ -634,6 +634,9 @@ def search(query: str, limit: int = None) -> None:
             except Exception as e:
                 # Silently ignore errors during search
                 pass
+
+        if limit:
+            matching_stories = matching_stories[:limit]
     
     if not matching_stories:
         console.print(f"\n[bold]Search Results for '{query}'[/bold]\n")
