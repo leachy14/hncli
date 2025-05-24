@@ -1,5 +1,6 @@
 from typer.testing import CliRunner
 import hncli.cli as cli
+from hncli.models import User
 
 runner = CliRunner()
 
@@ -23,7 +24,7 @@ def test_open_prompt(monkeypatch):
 def test_user_auto(monkeypatch):
     calls = []
     monkeypatch.setattr(cli, "get_config_value", lambda key, default=None: True)
-    monkeypatch.setattr(cli, "get_user", lambda u: {"created": 0, "karma": 1, "about": ""})
+    monkeypatch.setattr(cli, "get_user", lambda u: User(id=u, created=0, karma=1, about=""))
     monkeypatch.setattr(cli.webbrowser, "open", lambda url: calls.append(url))
     monkeypatch.setattr(cli.typer, "confirm", lambda *a, **kw: (_ for _ in ()).throw(AssertionError("confirm called")))
     result = runner.invoke(cli.app, ["user", "alice"])
@@ -33,7 +34,7 @@ def test_user_auto(monkeypatch):
 def test_user_prompt(monkeypatch):
     calls = []
     monkeypatch.setattr(cli, "get_config_value", lambda key, default=None: False)
-    monkeypatch.setattr(cli, "get_user", lambda u: {"created": 0, "karma": 1, "about": ""})
+    monkeypatch.setattr(cli, "get_user", lambda u: User(id=u, created=0, karma=1, about=""))
     monkeypatch.setattr(cli.webbrowser, "open", lambda url: calls.append(url))
     monkeypatch.setattr(cli.typer, "confirm", lambda *a, **kw: True)
     result = runner.invoke(cli.app, ["user", "bob"])
