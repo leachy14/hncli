@@ -16,6 +16,7 @@ from typing import Any, List, Optional, Tuple
 import textwrap
 from hncli import config, cache
 from hncli.errors import APIRequestError
+from hncli.models import Story, User
 import os
 import shutil
 import re
@@ -79,13 +80,13 @@ def get_story_ids(story_type: str) -> List[int]:
     cache.set(cache_key, result)
     return result
 
-def get_item(item_id: int) -> dict:
+def get_item(item_id: int) -> Story:
     """Get an item (story, comment, etc.) by its ID."""
     # Check cache first
     cache_key = cache.cache_key("item", item_id)
     cached = cache.get(cache_key, ttl=get_config_value("cache_timeout_minutes", 5) * 60)
     if cached:
-        return cached
+        return Story.model_validate(cached)
     
     # Fetch from API if not cached
     try:
@@ -95,19 +96,22 @@ def get_item(item_id: int) -> dict:
     except requests.RequestException as exc:
         raise APIRequestError(f"Failed to fetch item {item_id}") from exc
     
+
+
     # Cache the result
     cache.set(cache_key, result)
-    return result
+    return Story.model_validate(result)
 
-def get_user(username: str) -> dict:
+def get_user(username: str) -> User:
     """Get a user profile by username."""
     # Check cache first
     cache_key = cache.cache_key("user", username)
     cached = cache.get(cache_key, ttl=get_config_value("cache_timeout_minutes", 5) * 60)
     if cached:
-        return cached
+        return User.model_validate(cached)
     
     # Fetch from API if not cached
+
     try:
         response = requests.get(f"{USER_URL}/{username}.json")
         response.raise_for_status()
@@ -117,7 +121,7 @@ def get_user(username: str) -> dict:
     
     # Cache the result
     cache.set(cache_key, result)
-    return result
+    return User.model_validate(result)
 
 def format_time_ago(timestamp: int) -> str:
     """Format a Unix timestamp as a human-readable time ago string."""
@@ -182,7 +186,7 @@ def calculate_stories_per_page() -> int:
 # Story presentation helpers
 # ---------------------------------------------------------------------------
 
-def display_story(story: dict, show_index: Optional[int] = None) -> None:
+def display_story(story: Story, show_index: Optional[int] = None) -> None:
     """Display a story in a rich panel."""
     title = story.get("title", "No title")
     url = story.get("url", f"{HN_WEB_URL}/item?id={story['id']}")
@@ -211,7 +215,7 @@ def display_story(story: dict, show_index: Optional[int] = None) -> None:
     panel = Panel(content, expand=False)
     console.print(panel)
 
-def display_stories(stories: List[dict]) -> None:
+def display_stories(stories: List[Story]) -> None:
     """Display a list of stories in a compact table format."""
 
     if not stories:
@@ -254,9 +258,9 @@ def display_stories(stories: List[dict]) -> None:
 
     console.print(table)
 
-def display_comment(comment: dict, indent_level: int = 0) -> None:
+def display_comment(comment: Story, indent_level: int = 0) -> None:
     """Display a comment with appropriate indentation."""
-    if "deleted" in comment or "dead" in comment:
+    if comment.get("deleted") or comment.get("dead"):
         return
     
     author = comment.get("by", "unknown")
@@ -281,7 +285,7 @@ def display_comment(comment: dict, indent_level: int = 0) -> None:
     console.print(wrapped_text)
     console.print("")
 
-def display_comments(story: dict, max_comments: int = None) -> None:
+def display_comments(story: Story, max_comments: int = None) -> None:
     """
     Interactive display of top-level comments for a story.
     Users can navigate parent comments using arrow keys and press Enter to expand comment threads.
@@ -309,7 +313,7 @@ def display_comments(story: dict, max_comments: int = None) -> None:
     for cid in parent_ids:
         try:
             comment = get_item(cid)
-            if comment and "deleted" not in comment and "dead" not in comment:
+            if comment and not comment.get("deleted") and not comment.get("dead"):
                 parent_comments.append(comment)
         except Exception:
             pass
@@ -359,8 +363,8 @@ def display_comments(story: dict, max_comments: int = None) -> None:
         lines: List[str] = []
         import html
 
-        def collect(cmt: dict, depth: int):
-            if not cmt or "deleted" in cmt or "dead" in cmt:
+        def collect(cmt: Story, depth: int):
+            if not cmt or cmt.get("deleted") or cmt.get("dead"):
                 return
             author = cmt.get("by", "unknown")
             time_ago = format_time_ago(cmt.get("time", 0))
@@ -437,7 +441,7 @@ def show_navigation_menu(story_type: str, page: int, total_pages: int, story_cou
     console.print("[n] Next page | [p] Previous page | [#] Select story | [r] Refresh | [q] Quit")
     return Prompt.ask("Enter command", default="n")
 
-def handle_story_viewing(story: dict, max_comments: int = None) -> None:
+def handle_story_viewing(story: Story, max_comments: int = None) -> None:
     """Display a story followed by its comments.
 
     Once the user exits the comment view we immediately return to the caller
@@ -652,6 +656,9 @@ def search(query: str, limit: int = None) -> None:
             except APIRequestError:
                 # Silently ignore errors during search
                 pass
+
+        if limit:
+            matching_stories = matching_stories[:limit]
     
     if not matching_stories:
         console.print(f"\n[bold]Search Results for '{query}'[/bold]\n")
