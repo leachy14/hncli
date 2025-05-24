@@ -15,6 +15,7 @@ import webbrowser
 from typing import Any, List, Optional, Tuple
 import textwrap
 from hncli import config, cache
+from hncli.errors import APIRequestError
 import os
 import shutil
 import re
@@ -67,9 +68,12 @@ def get_story_ids(story_type: str) -> List[int]:
         return cached
     
     # Fetch from API if not cached
-    response = requests.get(f"{BASE_URL}/{story_type}stories.json")
-    response.raise_for_status()
-    result = response.json()
+    try:
+        response = requests.get(f"{BASE_URL}/{story_type}stories.json")
+        response.raise_for_status()
+        result = response.json()
+    except requests.RequestException as exc:
+        raise APIRequestError(f"Failed to fetch {story_type} stories") from exc
     
     # Cache the result
     cache.set(cache_key, result)
@@ -84,9 +88,12 @@ def get_item(item_id: int) -> dict:
         return cached
     
     # Fetch from API if not cached
-    response = requests.get(f"{ITEM_URL}/{item_id}.json")
-    response.raise_for_status()
-    result = response.json()
+    try:
+        response = requests.get(f"{ITEM_URL}/{item_id}.json")
+        response.raise_for_status()
+        result = response.json()
+    except requests.RequestException as exc:
+        raise APIRequestError(f"Failed to fetch item {item_id}") from exc
     
     # Cache the result
     cache.set(cache_key, result)
@@ -101,9 +108,12 @@ def get_user(username: str) -> dict:
         return cached
     
     # Fetch from API if not cached
-    response = requests.get(f"{USER_URL}/{username}.json")
-    response.raise_for_status()
-    result = response.json()
+    try:
+        response = requests.get(f"{USER_URL}/{username}.json")
+        response.raise_for_status()
+        result = response.json()
+    except requests.RequestException as exc:
+        raise APIRequestError(f"Failed to fetch user {username}") from exc
     
     # Cache the result
     cache.set(cache_key, result)
@@ -447,8 +457,12 @@ def browse_stories(story_type: str, stories_per_page: int = None) -> None:
         stories_per_page = calculate_stories_per_page()
     
     with console.status(f"Fetching {story_type} stories..."):
-        story_ids = get_story_ids(story_type)
-        total_stories = len(story_ids)
+        try:
+            story_ids = get_story_ids(story_type)
+            total_stories = len(story_ids)
+        except APIRequestError as e:
+            console.print(f"Error fetching {story_type} stories: {e}")
+            return
     
     current_page = 1
     total_pages = (total_stories + stories_per_page - 1) // stories_per_page
@@ -476,7 +490,7 @@ def browse_stories(story_type: str, stories_per_page: int = None) -> None:
                     story = get_item(story_id)
                     if story and story.get("type") == "story":
                         stories.append(story)
-                except Exception as e:
+                except APIRequestError as e:
                     console.print(f"Error fetching story {story_id}: {e}")
         
         columns, _ = get_terminal_size()
@@ -501,9 +515,13 @@ def browse_stories(story_type: str, stories_per_page: int = None) -> None:
             # Refresh the current page
             cache.clear()
             with console.status(f"Refreshing {story_type} stories..."):
-                story_ids = get_story_ids(story_type)
-                total_stories = len(story_ids)
-                total_pages = (total_stories + stories_per_page - 1) // stories_per_page
+                try:
+                    story_ids = get_story_ids(story_type)
+                    total_stories = len(story_ids)
+                    total_pages = (total_stories + stories_per_page - 1) // stories_per_page
+                except APIRequestError as e:
+                    console.print(f"Error refreshing {story_type} stories: {e}")
+                    continue
         elif command.lower() == 'q':
             break
         elif command.isdigit():
@@ -545,7 +563,7 @@ def story(
             if not story:
                 console.print(f"Story {item_id} not found.")
                 return
-        except Exception as e:
+        except APIRequestError as e:
             console.print(f"Error fetching story {item_id}: {e}")
             return
     
@@ -560,7 +578,7 @@ def user(username: str) -> None:
             if not user_data:
                 console.print(f"User {username} not found.")
                 return
-        except Exception as e:
+        except APIRequestError as e:
             console.print(f"Error fetching user {username}: {e}")
             return
     
@@ -611,7 +629,7 @@ def search(query: str, limit: int = None) -> None:
         for story_type in ["top", "new", "best"]:
             try:
                 all_story_ids.extend(get_story_ids(story_type)[:100])  # Get first 100 from each category
-            except Exception as e:
+            except APIRequestError as e:
                 console.print(f"Error fetching {story_type} stories: {e}")
         
         # Remove duplicates
@@ -628,10 +646,10 @@ def search(query: str, limit: int = None) -> None:
                 if story and story.get("type") == "story":
                     title = story.get("title", "").lower()
                     text = story.get("text", "").lower()
-                    
+
                     if query in title or query in text:
                         matching_stories.append(story)
-            except Exception as e:
+            except APIRequestError:
                 # Silently ignore errors during search
                 pass
     
