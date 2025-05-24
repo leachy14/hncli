@@ -163,7 +163,7 @@ Available configuration options:
   - Note: The actual number displayed may be lower depending on terminal size
 - `max_comment_depth`: Maximum depth of comments to display (default: 3)
 - `open_links_in_browser`: Whether to automatically open links in browser (default: true)
-- `color_theme`: Color theme to use (default: "default")
+ - `color_theme`: Color theme to use (default: "default"). Available themes: `default`, `dark`.
 - `cache_timeout_minutes`: Cache timeout in minutes (default: 5)
 
 ## Cache Management

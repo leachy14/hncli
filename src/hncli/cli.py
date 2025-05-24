@@ -14,7 +14,7 @@ from rich.markup import escape
 import webbrowser
 from typing import Any, List, Optional, Tuple
 import textwrap
-from hncli import config, cache
+from hncli import config, cache, themes
 import os
 import shutil
 import re
@@ -41,7 +41,8 @@ if "ctx" in inspect.signature(click.Parameter.make_metavar).parameters:
     click.Parameter.make_metavar = _patched_make_metavar  # type: ignore[assignment]
 
 app = typer.Typer(help="Hacker News CLI")
-console = Console()
+theme_name = config.get_setting("color_theme")
+console = Console(theme=themes.get_theme(theme_name))
 
 # Base URLs for the Hacker News API
 BASE_URL = "https://hacker-news.firebaseio.com/v0"
