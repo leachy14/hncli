@@ -1,6 +1,7 @@
 import types
 from typer.testing import CliRunner
 import hncli.cli as cli
+import hncli.formatters as formatters
 
 runner = CliRunner()
 
@@ -22,7 +23,7 @@ def test_config_set_int(monkeypatch):
 
 def test_config_get_single_key(monkeypatch):
     monkeypatch.setattr(cli.config, "get_setting", lambda k: "value")
-    result = runner.invoke(cli.app, ["config-get", "--key", "foo"])
+    result = runner.invoke(cli.app, ["config-get", "foo"])
     assert result.exit_code == 0
     assert "foo: value" in result.output
 
@@ -33,8 +34,8 @@ def test_config_get_all(monkeypatch):
         called.append(True)
         return {"foo": "bar"}
     monkeypatch.setattr(cli.config, "load_config", load_config)
-    monkeypatch.setattr(cli, "calculate_stories_per_page", lambda: 10)
-    monkeypatch.setattr(cli, "shutil", types.SimpleNamespace(get_terminal_size=lambda: (80, 24)), raising=False)
+    monkeypatch.setattr(formatters, "calculate_stories_per_page", lambda: 10)
+    monkeypatch.setattr(formatters, "shutil", types.SimpleNamespace(get_terminal_size=lambda: (80, 24)), raising=False)
     result = runner.invoke(cli.app, ["config-get"])
     assert result.exit_code == 0
     assert called == [True]
